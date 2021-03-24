@@ -26,18 +26,18 @@ class AliCloud
     {
         $phone = strval(intval($phone));
         if (!preg_match('/^1[3456789]\d{9}$/', $phone)) {
-            return ret_array(1, '手机号不正确，请重新输入！');
+            return ['code' => 1, 'msg' => '手机号不正确，请重新输入！'];
         }
 
         $cache = Cache::get('smsCaptcha_' . $phone);
         if (!$cache) {
-            return ret_array(2, '您的短信验证码已失效，请重新获取！');
+            return ['code' => 2, 'msg' => '您的短信验证码已失效，请重新获取！'];
         } elseif ($smsCaptcha <> $cache) {
-            return ret_array(3, '您输入的验证码有误！');
+            return ['code' => 3, 'msg' => '您输入的验证码有误！'];
         } else {
             // 清空验证码缓存，避免原验证码重复使用
             Cache::delete('smsCaptcha_' . $phone);
-            return ret_array(0);
+            return ['code' => 0];
         }
     }
 
@@ -53,13 +53,13 @@ class AliCloud
         // 校验手机号格式
         $phone = strval(intval($phone));
         if (!preg_match('/^1[3456789]\d{9}$/', $phone)) {
-            return ret_array(1, '手机号不正确，请重新输入！');
+            return ['code' => 1, 'msg' => '手机号不正确，请重新输入！'];
         }
 
         // 校验一分钟内只能发一条规则
         $time = Cache::get('smsCaptchaSendTimePhone_' . $phone);
         if ($time + 60 > time()) {
-            return ret_array(2, '您请求的太快啦，请稍后');
+            return ['code' => 2, 'msg' => '您请求的太快啦，请稍后'];
         }
         Cache::set('smsCaptchaSendTimePhone_' . $phone, time(), 60);
         unset($time);
@@ -69,7 +69,7 @@ class AliCloud
         if (!$times) {
             Cache::set('smsCaptchaTimesPhone_' . $phone, 1, 86400);
         } else {
-            if ($times > 5) return ret_array(2, '您今天已经发送了太多次短信啦');
+            if ($times > 5) return ['code' => 3, 'msg' => '您今天已经发送了太多次短信啦'];
             Cache::set('smsCaptchaTimesPhone_' . $phone, $times + 1, 86400);
         }
         unset($times);
@@ -80,7 +80,7 @@ class AliCloud
         if (!$times) {
             Cache::set('smsCaptchaTimesIp_' . $ip, 1, 86400);
         } else {
-            if ($times > 10) return ret_array(2, '您今天已经发送了太多次短信啦');
+            if ($times > 10) return ['code' => 4, 'msg' => '您今天已经发送了太多次短信啦'];
             Cache::set('smsCaptchaTimesIp_' . $ip, $times + 1, 86400);
         }
         unset($times);
@@ -152,9 +152,9 @@ class AliCloud
             // 写短信发送日志
             $content = '【' . $data['SignName'] . '】您的验证码是：' . $smsCaptcha . '，此验证码30分钟内有效，请勿泄露给他人。若非本人操作，请忽略此短信。';
             SmsLog::write($phone, $content, $smsCaptcha);
-            return ret_array(0, '验证码发送成功', ['captcha' => $smsCaptcha]);
+            return ['code' => 0, 'msg' => '验证码发送成功', 'data' => ['captcha' => $smsCaptcha]];
         } else {
-            return ret_array(1, $result['Message']);
+            return ['code' => 5, 'msg' => $result['Message']];
         }
     }
 
@@ -163,7 +163,7 @@ class AliCloud
      * @param string $toAddress 对方邮件地址
      * @param string $subject 邮件主题
      * @param string $htmlBody 邮件正文
-     * @return bool|string 成功返回true，失败返回错误详情
+     * @return array 成功返回code=1，失败返回msg
      */
     public static function sendMail(string $toAddress, string $subject, string $htmlBody)
     {
@@ -222,10 +222,10 @@ class AliCloud
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         if ($httpCode == 200) {
-            return true;
+            return ['code' => 0];
         } else {
             $arr = json_decode($json, true);
-            return $arr['Message'];
+            return ['code' => 1, 'msg' => $arr['Message']];
         }
     }
 }
